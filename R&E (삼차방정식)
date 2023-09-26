@@ -1,0 +1,43 @@
+import turtle as tt
+import matplotlib as mm
+
+#좌표 설정
+a=list(map(int,input().split()))
+len_a=len(a)
+dot1=(a[0]*100,0)
+dot2=(a[0]*100,a[1]*100)
+dot3=((a[0]+a[2])*100,a[1]*100)
+dot4=((a[0]+a[2])*100,(a[1]+a[3])*100)
+tt.goto(dot1)
+tt.goto(dot2)
+tt.goto(dot3)
+tt.goto(dot4)
+tt.penup()
+tt.goto(0,0)
+tt.pendown()
+
+
+for i in range(3):
+    if i==1:
+        if a[i+2]>=0:
+            tt.left(90)
+        else:
+            tt.right(90)
+    elif i ==2:
+        y+=a[i]
+        while t!=y:
+            #이동 조금씩
+            t=tt.ycor()
+        if a[i+2]>=0:
+            tt.left(90)
+        else:
+            tt.right(90)
+    else:
+        x-=a[i]
+        y-=a[i-1]
+        while t!=x:
+            #이동 조금씩
+            t=tt.xcor()
+            u=tt.ycor()
+        if u==y:
+            print()
