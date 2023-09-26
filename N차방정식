@@ -1,0 +1,548 @@
+# coding: utf-8
+
+# =============================================
+# pygame을 활용한 Lill's Method 구현 프로그램
+# ver 1.2
+#
+# 제작자 : 2314 이성재
+# 2023-09-19
+# =============================================
+
+# 이 프로그램에서
+# 좌표는 (x, y)의 형식으로 표현되며
+# 직선은 (a, b, c)의 형식으로 표현됨. -> ax+by+c = 0
+
+# import 부분
+import numpy as np  # 수학 함수 제공 (math 대체)
+import pygame as pg  # pygame
+# Turtle을 사용하지 않은 이유
+# 1. Turtle이 편하나, Pygame이 보다 자유로운 구현이 가능
+# 2. 제작자가 Pygame이 훨씬 익숙해서..
+from matplotlib import pyplot as plt
+
+# Color - RGB
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+BLUE = (0, 0, 255)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+GRAY = (128, 128, 128)
+YELLOW = (255, 255, 0)
+CYAN = (0, 255, 255)
+MAGNETA = (255, 0, 255)
+
+pg.init()  # pygame Initialize and Start
+
+
+# class 선언
+class Object():  # figure frame
+    def __init__(self, x=0, y=0):  # class initialize
+        self.x = x
+        self.y = y
+
+    def getPos(self):
+        return [self.x, self.y]
+
+    def setPos(self, x=None, y=None):
+        if x == None:
+            x = self.x
+        if y == None:
+            y = self.y
+        self.x = x
+        self.y = y
+
+    def draw(self, screen):  # draw function frame, Draw the Figure in screen
+        None
+
+    def hit(self, x, y):  # hit function frame. is Coordinate(x, y) in the Figure
+        return False
+
+
+# class ChildName(ParentName)
+# Inherit elements from parent class to child class
+class Rect(Object):  # (x, y) ~ (x+wid, y+hei)
+    def __init__(self, Color=BLACK, x=0, y=0, wid=10, hei=10, line=0):
+        self.Color = Color
+        super().__init__(x=x, y=y)  # ParentClass's init() function
+        self.width = wid
+        self.height = hei
+        self.line = line  # thickness
+
+    def draw(self, screen):
+        pg.draw.rect(screen, self.Color, [self.x, self.y, self.width, self.height], self.line)
+
+    def hit(self, x, y):
+        if self.x <= x and x <= self.x + self.width:
+            if self.y <= y and y <= self.y + self.height:
+                return True
+        return False
+
+
+class Circle(Object):  # center : (x, y), radius : radius
+    def __init__(self, Color=BLACK, x=0, y=0, Radius=10, line=0):
+        self.Color = Color
+        super().__init__(x=x, y=y)
+        self.Radius = Radius
+        self.line = line
+
+    def draw(self, screen):
+        pg.draw.circle(screen, self.Color, [self.x, self.y], self.Radius, self.line)
+
+    def hit(self, x, y):
+        if (x - self.x) ** 2 + (y - self.y) ** 2 <= self.Radius ** 2:
+            return True
+        return False
+
+
+class Line(Object):  # from SPos to EPos
+    def __init__(self, Color=BLACK, SPos=(0, 0), EPos=(0, 0), line=1, AA=True):
+        self.Color = Color
+        super().__init__()
+        self.SPos = SPos
+        self.EPos = EPos
+        self.line = line
+        # Anti-Aliasing
+        # drawing soft line
+        # if use AA, cant use line thickness
+        self.AA = AA
+
+    def draw(self, screen):
+        if self.AA:
+            pg.draw.aaline(screen, self.Color, self.SPos, self.EPos)
+        else:
+            pg.draw.line(screen, self.Color, self.SPos, self.EPos, self.line)
+
+
+basicFont = pg.font.SysFont("arial", 30)  # basis Font
+
+
+class Text(Object):
+    def __init__(self, Color=BLACK, x=0, y=0, Text="", Font=basicFont, AA=True, Bg=None):
+        self.Color = Color
+        super().__init__(x=x, y=y)
+        self.Font = Font
+        self.AA = AA
+        self.Bg = Bg  # Background Color. None is transparent color
+        self.text = self.Font.render(Text, self.AA, self.Color, self.Bg)  # Text Rendering
+
+    def draw(self, screen):
+        screen.blit(self.text, (self.x, self.y))
+
+    def setText(self, text):  # new text
+        self.text = self.Font.render(text, self.AA, self.Color, self.Bg)  # Text Rendering
+
+
+class Triangle(Object):  # defined by three points
+    def __init__(self, Color=BLACK, p1=[0, 0], p2=[0, 0], p3=[0, 0], line=0):
+        self.Color = Color
+        super().__init__()
+        self.Points = [p1, p2, p3]  # Point's Coordinates
+        self.line = line
+
+    def draw(self, screen):
+        pg.draw.polygon(screen, self.Color, self.Points, self.line)
+
+
+def voidFunc():  # Void Function
+    pass
+
+
+EIEO = [0.45, 0.47, 0.48, 0.49, 0.5, 0.5, 0.5, 0.49, 0.48, 0.47, 0.45]  # Saturation Control List (not Important)
+
+
+class Button(Object):  # execution func when click button
+    def __init__(self, Obj: Object, func=voidFunc, args=()):
+        self.Obj = Obj  # Button's Figure. Figure have to have hit() function
+        self.func = func
+        self.args = args  # func's parameter
+        self.cache = Obj.Color  # Color Save
+
+    def onClick(self, x, y):
+        if self.Obj.hit(x, y):  # is Click?
+            # plus Event
+            Events.append((self.func, self.args))
+            Events.append((self.Touch, ()))
+
+    def Touch(self, n=0):  # recursive function, Saturation Control (not Important)
+        Color = self.cache
+        R, G, B = Color
+        if n == 0:
+            R += (200 - R) * EIEO[n]
+            G += (200 - G) * EIEO[n]
+            B += (200 - B) * EIEO[n]
+            R, G, B = map(int, (R, G, B))
+            self.Obj.Color = (R, G, B)
+            Events.append((self.Touch, (1,)))
+            return
+        elif n < 10:
+            R += (200 - R) * EIEO[n]
+            G += (200 - G) * EIEO[n]
+            B += (200 - B) * EIEO[n]
+            R, G, B = map(int, (R, G, B))
+            self.Obj.Color = (R, G, B)
+            Events.append((self.Touch, (n + 1,)))
+            return
+        elif n == 10:
+            self.Obj.Color = self.cache
+
+    def draw(self, screen):
+        self.Obj.draw(screen)
+
+
+SSData = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"]  # Superscript List
+
+
+def getSS(Number):  # superscript return (not Important)
+    Number == int(Number)
+    L = []
+    while Number != 0:
+        L.append(Number - (Number // 10) * 10)
+        Number = Number // 10
+    L = L[::-1]
+    for i in range(len(L)):
+        L[i] = SSData[L[i]]
+    s = "".join(L)
+    return s
+
+
+def getEquationString(Coefficients):  # Equations string return
+    s = ""
+    for i, Coefficient in enumerate(Coefficients):
+        if Coefficient == 0:
+            continue
+        if Coefficient == 1 and N - i != 0:
+            Coefficient = ""
+        if N - i == 0:
+            s += f"{Coefficient} + "
+            continue
+        if N - i == 1:
+            s += f"{Coefficient}x + "
+            continue
+        s += f"{Coefficient}x{getSS(N - i)} + "
+    s += "\b\b= 0"  # \b perform in print() like backspace
+    return s
+
+
+# Draw the All of Objects
+def drawing(screen, Objects):
+    for obj in Objects:
+        obj.draw(screen)
+
+
+# Ordinal suffix List (not Important)
+Ordinal_set = ["th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th"] * 10
+Ordinal_set[11] = "th"
+Ordinal_set[12] = "th"
+Ordinal_set[13] = "th"
+
+
+def getOrd(N):  # Ordinal Number return
+    return str(N) + "" + Ordinal_set[N % 100]
+
+
+def getLine(p1, p2):  # return Line passing through p1 and p2
+    x1, y1 = p1
+    x2, y2 = p2
+    return ((y2 - y1), (x1 - x2), (x2 - x1) * y1 - (y2 - y1) * x1)
+
+
+def getIntersection(l1, l2):  # return Point is intersection of l1, l2
+    a1, b1, c1 = l1
+    a2, b2, c2 = l2
+    temp = a1 * b2 - a2 * b1
+    if temp == 0:
+        return None
+    x = (b1 * c2 - b2 * c1) / temp
+    y = (a2 * c1 - a1 * c2) / temp
+    return x, y
+
+
+# Value Setting
+# Caution! Coefficient is one in [±0.1, ±0.2, ±0.3 ...]
+equation = input("input Equation : ").replace(" ", "")  # ex) 3x^2 + 1
+equation = equation.replace("-", "+-")
+equation = equation.split("+")
+equation = [x for x in equation if x]  # eliminate "", ''
+
+# Get Order of Equation
+N = 0
+for coeff in equation:
+    if coeff.find("x") == -1:
+        continue
+    elif coeff.find("^") == -1:
+        if N < 1:
+            N = 1
+    else:
+        temp = int(coeff.split("^")[1])
+        if N < temp:
+            N = temp
+
+# Get Coefficients of Equation
+# Reverse Coefficients. -> ex) 3x^2 + 1 -> [1, 0, 3]
+Coefficients = [0 for i in range(N + 1)]
+for coeff in equation:
+    if coeff.find("x") == -1:
+        Coefficients[0] += int(float(coeff))
+    elif coeff.find("^") == -1:
+        if coeff[:-1] == '':
+            Coefficients[1] += 1
+            continue
+        Coefficients[1] += int(float(coeff[:-1]))
+    else:
+        temp = int(coeff.split("^")[1])
+        if coeff.split("^")[0][:-1] == '':
+            Coefficients[temp] += 1
+            continue
+        Coefficients[temp] += int(float(coeff.split("^")[0][:-1]))
+
+Coefficients = Coefficients[::-1]
+# Scaling Coefficients
+mC = max(Coefficients)
+for ix in range(len(Coefficients)):
+    Coefficients[ix] = Coefficients[ix] * 200 / (mC)
+
+print(Coefficients)
+print("initial Equation : " + getEquationString(Coefficients))
+
+size = [800 + 400, 600]  # 800 Graph screen + 400 Other screen
+screen = pg.display.set_mode(size)  # Set Screen
+
+pg.display.set_caption(f"Lill's method in {getOrd(N)} Equation")  # caption
+clock = pg.time.Clock()
+
+# Objects is permanent elemants
+# Disposs is disposable elemants
+Objects = []
+Disposs = []
+Buttons = []
+Inputs = []  # unuse
+Scrolls = []  # unuse
+
+# Events is events in this frame
+Events = []
+
+# draw Axis-x, Axis-y
+Objects.append(Line(GRAY, (0, 300), (800, 300), AA=True))
+Objects.append(Line(GRAY, (400, 0), (400, 600), AA=True))
+Objects.append(Triangle(GRAY, [800, 300], [790, 310], [790, 290]))
+Objects.append(Triangle(GRAY, [400, 600], [410, 590], [390, 590]))
+
+# draw Wall of Equation
+Pos = [400, 300]
+for ix in range(N + 1):
+    EPos = [0, 0]
+    Color = BLACK
+    if ix % 4 == 0:
+        EPos[0] = Pos[0] + Coefficients[ix]
+        EPos[1] = Pos[1]
+        Color = BLACK
+
+    elif ix % 4 == 1:
+        EPos[1] = Pos[1] + Coefficients[ix]
+        EPos[0] = Pos[0]
+        Color = BLACK
+
+    elif ix % 4 == 2:
+        EPos[0] = Pos[0] - Coefficients[ix]
+        EPos[1] = Pos[1]
+        Color = BLACK
+
+    else:
+        EPos[1] = Pos[1] - Coefficients[ix]
+        EPos[0] = Pos[0]
+        Color = BLACK
+
+    Objects.append(Line(Color, SPos=Pos[:], EPos=EPos[:], line=2, AA=False))
+    Pos[0], Pos[1] = EPos[0], EPos[1]
+
+
+# Start Button
+def starting():
+    global Start, theta
+    Start = (not Start)
+    theta = np.pi / 2
+    print(Start)
+
+
+Objects.append(Text(BLACK, x=862, y=84, Text="START"))
+StartButton = Button(Rect(BLACK, 850, 50, wid=100, hei=100, line=8), starting)
+Buttons.append(StartButton)
+Objects.append(StartButton)
+
+
+# Speed Setting Button
+def SpeedUp():
+    global speed, Auto
+    speed += 0.1
+    Auto = False
+    SpeedText.setText(f"speed : {speed}")
+
+
+def SpeedDown():
+    global speed, Auto
+    speed -= 0.1
+    Auto = False
+    SpeedText.setText(f"speed : {speed}")
+
+
+SpeedUpButton = Button(Circle(RED, 1100, 500, 50, line=8), SpeedUp)
+SpeedDownButton = Button(Circle(BLUE, 900, 500, 50, line=8), SpeedDown)
+Buttons.append(SpeedUpButton)
+Buttons.append(SpeedDownButton)
+Objects.append(SpeedUpButton)
+Objects.append(SpeedDownButton)
+Objects.append(Triangle(RED, [1100, 450], [1100 + int(25 * np.sqrt(3)), 525], [1100 - int(25 * np.sqrt(3)), 525]))
+Objects.append(Triangle(BLUE, [900, 550], [900 + int(25 * np.sqrt(3)), 475], [900 - int(25 * np.sqrt(3)), 475]))
+
+
+# Speed Auto Mode Button
+def AutoChange():
+    global Auto
+    Auto = True
+    SpeedText.setText("speed : Auto")
+
+
+Objects.append(Text(BLACK, x=1062, y=84, Text="AU TO"))
+AutoButton = Button(Rect(BLACK, 1050, 50, wid=100, hei=100, line=8), AutoChange)
+Buttons.append(AutoButton)
+Objects.append(AutoButton)
+
+# Speed Text Setting
+SpeedText = Text(BLACK, 900, 300, "speed : Auto", AA=True)
+Objects.append(SpeedText)
+
+# factors
+done = False
+Start = False
+theta = np.pi / 2
+speed = -4
+Auto = True
+result = []
+tolerance = 0.2
+
+while not done:
+    clock.tick(30)  # 30 ticks program
+
+    for event in pg.event.get():  # pygame Event processing
+        if event.type == pg.QUIT:
+            done = True
+        if event.type == pg.MOUSEBUTTONDOWN:
+            mouse = pg.mouse.get_pos()
+            for button in Buttons:
+                button.onClick(*mouse)
+
+    screen.fill(WHITE)
+
+    # Lill's Method
+    if Start and theta >= -np.pi / 2:
+        Pos = [400, 300]
+        lPos = [400, 300]
+        l1 = (np.sin(theta), -np.cos(theta), -np.sin(theta) * 400 + np.cos(theta) * 300)
+        for ix in range(N + 1):
+            EPos = [0, 0]
+            if ix % 4 == 0:
+                EPos[0] = Pos[0] + Coefficients[ix]
+                EPos[1] = Pos[1]
+            elif ix % 4 == 1:
+                EPos[1] = Pos[1] + Coefficients[ix]
+                EPos[0] = Pos[0]
+            elif ix % 4 == 2:
+                EPos[0] = Pos[0] - Coefficients[ix]
+                EPos[1] = Pos[1]
+            else:
+                EPos[1] = Pos[1] - Coefficients[ix]
+                EPos[0] = Pos[0]
+
+            if ix == 0:
+                pass
+            else:
+                Wall = getLine(Pos, EPos)
+                intersection = getIntersection(l1, Wall)
+                err = 1000  # Auto Speed Setting Factor
+
+                # Exception Process
+                if intersection == None:
+                    break
+                if np.abs(intersection[0]) >= 800:
+                    intersection = getIntersection(l1, (1, 0, -800))
+                    Disposs.append(Circle(BLUE, *list(map(round, intersection)), 2))
+                    Disposs.append(Line(BLACK, lPos, intersection, 1, True))
+                    break
+                if np.abs(intersection[1]) >= 600:
+                    intersection = getIntersection(l1, (0, 1, -600))
+                    Disposs.append(Circle(BLUE, *list(map(round, intersection)), 2))
+                    Disposs.append(Line(BLACK, lPos, intersection, 1, True))
+                    break
+                if np.abs(intersection[0]) <= 0:
+                    intersection = getIntersection(l1, (1, 0, 0))
+                    Disposs.append(Circle(BLUE, *list(map(round, intersection)), 2))
+                    Disposs.append(Line(BLACK, lPos, intersection, 1, True))
+                    break
+                if np.abs(intersection[1]) <= 0:
+                    intersection = getIntersection(l1, (0, 1, 0))
+                    Disposs.append(Circle(BLUE, *list(map(round, intersection)), 2))
+                    Disposs.append(Line(BLACK, lPos, intersection, 1, True))
+                    break
+
+                Disposs.append(Circle(BLUE, *list(map(round, intersection)), 2))
+                Disposs.append(Line(BLACK, lPos, intersection, 1, True))
+
+                # Calculate reflection(refraction) line 
+                a = np.sin(theta + np.pi * ix / 2)
+                b = np.cos(theta + np.pi * ix / 2)
+                l1 = (a, -b, -a * intersection[0] + b * intersection[1])
+                lPos = intersection[:]
+
+                # Calculate Error
+                if ix == N:
+                    ex = (intersection[0] - EPos[0]) ** 2
+                    ey = (intersection[1] - EPos[1]) ** 2
+                    err = np.sqrt(ex + ey)
+                    print(err)
+                    if err < tolerance:
+                        result.append(theta)
+                        Objects += Disposs
+
+            Pos[0], Pos[1] = EPos[0], EPos[1]
+
+        # Auto Speed Setting
+        if Auto:
+            speed = -3 - (((1000 - err) / 1000) ** 40) / 1.3
+
+        theta -= np.pi * (10 ** (speed))
+
+    # Drawing
+    drawing(screen, Objects)
+    drawing(screen, Disposs)
+
+    # Event Process
+    Act = Events
+    Events = []
+    Disposs = []
+    for event, args in Act:
+        event(*args)
+
+    pg.display.flip()
+pg.quit()
+
+# Remove Duplicate Value as much as posible
+ri = []
+ki = []
+for r in result:
+    N = True
+    for ix in range(len(ri)):
+        if abs(ri[ix] / ki[ix] - r) <= 2 * np.pi * 1.0e-3:
+            ri[ix] += r
+            ki[ix] += 1
+            N = False
+    if N:
+        ri.append(r)
+        ki.append(1)
+for ix in range(len(ri)):
+    ri[ix] = ri[ix] / ki[ix]
+
+# printing Value
+for ix, r in enumerate(list(map(np.tan, ri))):
+    print(f"해 : {-r}")
+
+input()
