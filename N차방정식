@@ -5,9 +5,6 @@
 # import 부분
 import numpy as np  # 수학 함수 제공 (math 대체)
 import pygame as pg  # pygame
-# Turtle을 사용하지 않은 이유
-# 1. Turtle이 편하나, Pygame이 보다 자유로운 구현이 가능
-# 2. 제작자가 Pygame이 훨씬 익숙해서..
 from matplotlib import pyplot as plt
 
 # Color - RGB
